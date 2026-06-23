@@ -23,10 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return limited;
     }
 
-    const authError = requireWriteToken(request);
-    if (authError) {
-      return authError;
-    }
+    // Public uploads don't require token - rate limited via IP
 
     const formData = await request.formData();
     const file = formData.get('file') as File;

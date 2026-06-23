@@ -71,8 +71,11 @@ export async function POST(request: NextRequest) {
 
     const figureName = typeof body.figureName === 'string' ? sanitizeText(body.figureName, 120) : '';
     const lineName = typeof body.lineName === 'string' ? sanitizeText(body.lineName, 120) : '';
-    const baseBuck = typeof body.baseBuck === 'string' ? sanitizeText(body.baseBuck, 120) : '';
+    const baseBuck = typeof body.baseBuck === 'string' ? sanitizeText(body.baseBuck, 120) : null;
     const imageUrl = typeof body.imageUrl === 'string' ? sanitizeText(body.imageUrl, 255) : '';
+    const imageViewType = typeof body.imageViewType === 'string' && ['front', 'back', 'detail'].includes(body.imageViewType)
+      ? body.imageViewType
+      : null;
     const notes = typeof body.notes === 'string' ? sanitizeText(body.notes, 2000) : '';
     const year = Number.isInteger(body.year) ? body.year : null;
     const submittedBy =
@@ -82,10 +85,6 @@ export async function POST(request: NextRequest) {
 
     if (!figureName) {
       return secureJson({ error: 'figureName is required' }, { status: 400 });
-    }
-
-    if (!baseBuck) {
-      return secureJson({ error: 'baseBuck is required' }, { status: 400 });
     }
 
     if (year !== null && (year < 1900 || year > 2100)) {
@@ -99,13 +98,15 @@ export async function POST(request: NextRequest) {
     const matchConfidence = best ? Number(best.score.toFixed(2)) : 0.3;
 
     const proposedUpdates: Record<string, unknown> = {
-      base_buck: baseBuck,
       year,
       line_name: lineName || null,
     };
+    if (baseBuck) {
+      proposedUpdates.base_buck = baseBuck;
+    }
 
     const needsBaseBuckCorrection =
-      !!best?.base_buck && normalize(best.base_buck) !== normalize(baseBuck);
+      !!best?.base_buck && !!baseBuck && normalize(best.base_buck) !== normalize(baseBuck);
 
     const claimPayload = {
       entity_type: 'figure',
@@ -118,6 +119,7 @@ export async function POST(request: NextRequest) {
           base_buck: baseBuck,
           year,
           image_url: imageUrl || null,
+          image_view_type: imageViewType,
           notes: notes || null,
           submitted_by: submittedBy,
         },

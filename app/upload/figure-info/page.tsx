@@ -11,6 +11,8 @@ type FigureCandidate = {
   score: number;
 };
 
+type ImageViewType = 'front' | 'back' | 'detail';
+
 type FigureInfoMatch = {
   matchedFigureId: string | null;
   confidence: number;
@@ -26,6 +28,7 @@ export default function UploadFigureInfoPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageViewType, setImageViewType] = useState<ImageViewType | ''>('');
   const [notes, setNotes] = useState('');
   const [submittedBy, setSubmittedBy] = useState('');
 
@@ -100,8 +103,8 @@ export default function UploadFigureInfoPage() {
     setMessage(null);
     setMatching(null);
 
-    if (!figureName || !baseBuck) {
-      setError('Figure name and base buck are required.');
+    if (!figureName.trim()) {
+      setError('Figure name is required.');
       return;
     }
 
@@ -113,9 +116,10 @@ export default function UploadFigureInfoPage() {
         body: JSON.stringify({
           figureName,
           lineName,
-          baseBuck,
+          baseBuck: baseBuck || null,
           year: year ? Number.parseInt(year, 10) : undefined,
           imageUrl,
+          imageViewType: imageViewType || null,
           notes,
           submittedBy,
         }),
@@ -169,7 +173,7 @@ export default function UploadFigureInfoPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="lineName" className="block text-sm font-medium mb-1">
-              Line Name (optional)
+              Product Line (e.g., Marvel Legends, Neca)
             </label>
             <input
               id="lineName"
@@ -182,16 +186,16 @@ export default function UploadFigureInfoPage() {
 
           <div>
             <label htmlFor="baseBuck" className="block text-sm font-medium mb-1">
-              Base Buck (required)
+              Base Buck / Body Mold (optional)
             </label>
             <input
               id="baseBuck"
-              required
               value={baseBuck}
               onChange={(e) => setBaseBuck(e.target.value)}
-              placeholder="Vulcan Buck"
+              placeholder="e.g., Vulcan Buck, Spider-Man ML20, etc."
               className="w-full px-3 py-2 border rounded-md"
             />
+            <p className="text-xs text-gray-500 mt-1">The main body/buck this figure is based on</p>
           </div>
         </div>
 
@@ -214,16 +218,36 @@ export default function UploadFigureInfoPage() {
         </div>
 
         <div className="border-t pt-4">
-          <h3 className="font-semibold mb-4">Image (optional)</h3>
+          <h3 className="font-semibold mb-4">Image & View Type (optional)</h3>
 
           {imagePreview && (
-            <div className="mb-4 relative w-full h-48">
-              <Image
-                src={imagePreview}
-                alt="Preview"
-                fill
-                className="object-contain rounded-md"
-              />
+            <div className="mb-4 space-y-2">
+              <div className="relative w-full h-48">
+                <Image
+                  src={imagePreview}
+                  alt="Preview"
+                  fill
+                  className="object-contain rounded-md"
+                />
+              </div>
+              {imageFile && (
+                <div>
+                  <label htmlFor="imageViewType" className="block text-sm font-medium mb-1">
+                    What view is this? (helps identify parts)
+                  </label>
+                  <select
+                    id="imageViewType"
+                    value={imageViewType}
+                    onChange={(e) => setImageViewType(e.target.value as ImageViewType | '')}
+                    className="w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="">-- select view type --</option>
+                    <option value="front">Front View</option>
+                    <option value="back">Back View</option>
+                    <option value="detail">Detail / Close-up</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -303,15 +327,17 @@ export default function UploadFigureInfoPage() {
 
         <div>
           <label htmlFor="notes" className="block text-sm font-medium mb-1">
-            Notes (optional)
+            Additional Notes (optional)
           </label>
           <textarea
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g., 'Head from Hasbro Spider-Man ML20, repainted red/blue' or 'Custom dye job, clear coat applied'"
             rows={3}
             className="w-full px-3 py-2 border rounded-md"
           />
+          <p className="text-xs text-gray-500 mt-1">Include part sources, custom modifications, paint jobs, etc.</p>
         </div>
 
         <div>
