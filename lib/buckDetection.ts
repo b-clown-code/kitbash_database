@@ -14,7 +14,8 @@ export interface BuckDetectionResult {
   changed: boolean;
 }
 
-const BUCK_THRESHOLD = 0.6; // 60% threshold to consider as buck
+const BUCK_THRESHOLD = 0.8; // 80% threshold - only assign buck if very confident
+const MIN_BODY_PARTS = 2;  // Need at least 2 body parts to attempt detection
 const BODY_PARTS = ['head', 'torso', 'arms', 'legs']; // Parts to count for buck detection
 
 /**
@@ -100,8 +101,13 @@ export async function detectBuckForFigure(figureId: string): Promise<BuckDetecti
     .sort((a, b) => b.percentage - a.percentage);
 
   // Determine if there's a dominant mold
+  // Only assign if:
+  // 1. At least MIN_BODY_PARTS are present (avoid false positives from single part)
+  // 2. One mold represents ≥80% of body parts (high confidence)
   const detectedBuck =
-    moldPercentages.length > 0 && moldPercentages[0].percentage >= BUCK_THRESHOLD
+    bodyPartCount >= MIN_BODY_PARTS &&
+    moldPercentages.length > 0 &&
+    moldPercentages[0].percentage >= BUCK_THRESHOLD
       ? moldPercentages[0].mold
       : null;
 
