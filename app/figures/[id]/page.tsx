@@ -141,7 +141,7 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
                 className="block p-4 bg-white border rounded-lg hover:bg-slate-50"
               >
                 <p className="font-semibold">
-                  {part.displayName || part.moldName ? part.displayName : `${figure.name} ${part.part_type}`}
+                  {part.displayName || `${figure.name} ${part.part_type}`}
                 </p>
                 <p className="text-sm text-gray-600">
                   {part.part_type}
