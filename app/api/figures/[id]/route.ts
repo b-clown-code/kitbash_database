@@ -29,7 +29,7 @@ export async function GET(
 
     const { data: figurePartRows, error: partsError } = await supabase
       .from('figure_parts')
-      .select('slot_label, is_primary, notes, part_definitions(*)')
+      .select('slot_label, is_primary, notes, part_definitions(id, name, slug, part_type, mold_family_id, mold_families(name))')
       .eq('figure_id', params.id)
       .order('slot_label', { ascending: true });
 
@@ -39,12 +39,20 @@ export async function GET(
     }
 
     const parts = (figurePartRows || [])
-      .map((row: any) => ({
-        ...(row.part_definitions || {}),
-        slot_label: row.slot_label,
-        is_primary: row.is_primary,
-        notes: row.notes,
-      }))
+      .map((row: any) => {
+        const partDef = row.part_definitions || {};
+        const moldName = partDef.mold_families?.name;
+        const displayName = moldName ? `${moldName} ${partDef.part_type}` : partDef.name;
+        
+        return {
+          ...partDef,
+          displayName, // New field for UI display
+          moldName,    // Also include mold name separately
+          slot_label: row.slot_label,
+          is_primary: row.is_primary,
+          notes: row.notes,
+        };
+      })
       .filter((p) => p.id);
 
     return secureJson({ figure, parts });

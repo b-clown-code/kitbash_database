@@ -1,0 +1,26 @@
+name: Nightly Buck Detection
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  detect-bucks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger buck detection API
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.VERCEL_APP_URL }}/api/admin/detect-bucks" \
+            --fail
+      
+      - name: Report success
+        run: echo "✅ Buck detection completed successfully"
+      
+      - name: Report failure
+        if: failure()
+        run: echo "❌ Buck detection failed - check Vercel logs"

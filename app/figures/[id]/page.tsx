@@ -16,6 +16,8 @@ type FigurePart = {
   name: string;
   slug: string;
   part_type: string;
+  displayName?: string; // Mold name + type, or figure name + type for unique
+  moldName?: string;    // Mold family name if available
   slot_label?: string;
   notes?: string;
   is_primary?: boolean;
@@ -138,7 +140,9 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
                 href={`/parts/${part.id}`}
                 className="block p-4 bg-white border rounded-lg hover:bg-slate-50"
               >
-                <p className="font-semibold">{part.name}</p>
+                <p className="font-semibold">
+                  {part.displayName || part.moldName ? part.displayName : `${figure.name} ${part.part_type}`}
+                </p>
                 <p className="text-sm text-gray-600">
                   {part.part_type}
                   {part.slot_label ? ` • slot: ${part.slot_label}` : ''}
