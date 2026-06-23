@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { FigureViewModel, Part } from '@/lib/figureTransformationPipeline';
 
 type Figure = {
   id: string;
@@ -11,23 +12,11 @@ type Figure = {
   year?: number;
 };
 
-type FigurePart = {
-  id: string;
-  name: string;
-  slug: string;
-  part_type: string;
-  displayName?: string; // Mold name + type, or figure name + type for unique
-  moldName?: string;    // Mold family name if available
-  slot_label?: string;
-  notes?: string;
-  is_primary?: boolean;
-};
-
 type ComparisonState = {
   showComparison: boolean;
   compareFigureId: string | null;
   compareFigureName: string | null;
-  compareParts: FigurePart[] | null;
+  compareViewModel: FigureViewModel | null;
 };
 
 async function fetchFigureData(figureId: string) {
@@ -38,14 +27,14 @@ async function fetchFigureData(figureId: string) {
 
 export default function FigureDetailPage({ params }: { params: { id: string } }) {
   const [figure, setFigure] = useState<Figure | null>(null);
-  const [parts, setParts] = useState<FigurePart[]>([]);
+  const [viewModel, setViewModel] = useState<FigureViewModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [comparison, setComparison] = useState<ComparisonState>({
     showComparison: false,
     compareFigureId: null,
     compareFigureName: null,
-    compareParts: null,
+    compareViewModel: null,
   });
   const [compareFigureUrl, setCompareFigureUrl] = useState('');
   const [comparisonLoading, setComparisonLoading] = useState(false);
@@ -60,7 +49,7 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
         }
 
         setFigure(data.figure);
-        setParts(data.parts || []);
+        setViewModel(data.viewModel);
       } catch {
         setError('Failed to load figure');
       } finally {
@@ -93,7 +82,7 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
         showComparison: true,
         compareFigureId: uuid,
         compareFigureName: data.figure.name,
-        compareParts: data.parts || [],
+        compareViewModel: data.viewModel,
       });
     } catch {
       alert('Failed to load comparison figure');
@@ -130,27 +119,47 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
 
       <section className="space-y-3">
         <h3 className="text-xl font-semibold">Parts Used</h3>
-        {parts.length === 0 ? (
+        {!viewModel || viewModel.summary.totalParts === 0 ? (
           <p className="text-gray-600">No parts linked to this figure yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {parts.map((part) => (
-              <Link
-                key={`${part.id}-${part.slot_label || 'slot'}`}
-                href={`/parts/${part.id}`}
-                className="block p-4 bg-white border rounded-lg hover:bg-slate-50"
-              >
-                <p className="font-semibold">
-                  {part.displayName || `${figure.name} ${part.part_type}`}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {part.part_type}
-                  {part.slot_label ? ` • slot: ${part.slot_label}` : ''}
-                  {part.is_primary ? ' • primary' : ''}
-                </p>
-                {part.notes ? <p className="text-sm text-gray-500 mt-1">{part.notes}</p> : null}
-              </Link>
-            ))}
+          <div className="space-y-4">
+            {Object.entries(viewModel.parts).map(([partType, partsOfType]) => {
+              if (partsOfType.length === 0) return null;
+
+              return (
+                <div key={partType}>
+                  <h4 className="font-semibold text-gray-800 capitalize mb-2">
+                    {partType}
+                    <span className="text-sm text-gray-500 font-normal ml-2">
+                      ({partsOfType.length})
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-2">
+                    {partsOfType.map((part: Part) => (
+                      <Link
+                        key={`${part.id}-${part.slot_label || 'default'}`}
+                        href={`/parts/${part.id}`}
+                        className="block p-3 bg-white border rounded hover:bg-slate-50"
+                      >
+                        <p className="font-semibold text-sm">{part.displayName}</p>
+                        {part.moldName && (
+                          <p className="text-xs text-gray-500">Mold: {part.moldName}</p>
+                        )}
+                        {part.slot_label && (
+                          <p className="text-xs text-gray-600">Slot: {part.slot_label}</p>
+                        )}
+                        {part.is_primary && (
+                          <p className="text-xs text-blue-600 font-medium">Primary</p>
+                        )}
+                        {part.notes && (
+                          <p className="text-xs text-gray-500 mt-1">{part.notes}</p>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -178,12 +187,12 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
       ) : (
         <ComparisonPanel
           figure1={figure}
-          parts1={parts}
+          viewModel1={viewModel}
           figure2Name={comparison.compareFigureName || 'Unknown'}
           figure2Id={comparison.compareFigureId || ''}
-          parts2={comparison.compareParts || []}
+          viewModel2={comparison.compareViewModel}
           onClose={() =>
-            setComparison({ showComparison: false, compareFigureId: null, compareFigureName: null, compareParts: null })
+            setComparison({ showComparison: false, compareFigureId: null, compareFigureName: null, compareViewModel: null })
           }
         />
       )}
@@ -197,19 +206,28 @@ export default function FigureDetailPage({ params }: { params: { id: string } })
 
 function ComparisonPanel({
   figure1,
-  parts1,
+  viewModel1,
   figure2Name,
   figure2Id,
-  parts2,
+  viewModel2,
   onClose,
 }: {
   figure1: Figure;
-  parts1: FigurePart[];
+  viewModel1: FigureViewModel | null;
   figure2Name: string;
   figure2Id: string;
-  parts2: FigurePart[];
+  viewModel2: FigureViewModel | null;
   onClose: () => void;
 }) {
+  // Flatten grouped parts into a single array for comparison logic
+  const flattenParts = (viewModel: FigureViewModel | null): Part[] => {
+    if (!viewModel) return [];
+    return Object.values(viewModel.parts).flat();
+  };
+
+  const parts1 = flattenParts(viewModel1);
+  const parts2 = flattenParts(viewModel2);
+
   const [selectedPair, setSelectedPair] = useState<[string, string] | null>(null);
   const [level, setLevel] = useState<'green' | 'yellow' | 'red'>('green');
   const [notes, setNotes] = useState('');
@@ -276,7 +294,7 @@ function ComparisonPanel({
                     selectedPair?.[0] === p.id ? 'bg-purple-200 border-purple-400' : 'bg-white hover:bg-purple-100'
                   }`}
                 >
-                  {p.name}
+                  {p.displayName}
                 </button>
               ))}
             </div>
@@ -297,7 +315,7 @@ function ComparisonPanel({
                     selectedPair?.[1] === p.id ? 'bg-purple-200 border-purple-400' : 'bg-white hover:bg-purple-100'
                   }`}
                 >
-                  {p.name}
+                  {p.displayName}
                 </button>
               ))}
             </div>
@@ -308,8 +326,8 @@ function ComparisonPanel({
       {selectedPair && selectedPair[0] && selectedPair[1] && (
         <div className="space-y-2 p-3 bg-white rounded border">
           <p className="font-semibold text-sm">
-            {parts1.find((p) => p.id === selectedPair[0])?.name} ↔{' '}
-            {parts2.find((p) => p.id === selectedPair[1])?.name}
+            {parts1.find((p) => p.id === selectedPair[0])?.displayName} ↔{' '}
+            {parts2.find((p) => p.id === selectedPair[1])?.displayName}
           </p>
 
           <select

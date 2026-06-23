@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as figureService from '@/services/figureService';
 import { supabase } from '@/lib/supabaseClient';
+import { transformFigureData } from '@/lib/figureTransformationPipeline';
 import { enforceRateLimit, isValidUuid, secureJson } from '@/lib/requestSecurity';
 
 export async function GET(
@@ -46,8 +47,8 @@ export async function GET(
         
         return {
           ...partDef,
-          displayName, // New field for UI display
-          moldName,    // Also include mold name separately
+          displayName,
+          moldName,
           slot_label: row.slot_label,
           is_primary: row.is_primary,
           notes: row.notes,
@@ -55,7 +56,13 @@ export async function GET(
       })
       .filter((p) => p.id);
 
-    return secureJson({ figure, parts });
+    // Apply transformation pipeline: normalize → dedupe → group → view model
+    const viewModel = transformFigureData(figure, parts);
+
+    return secureJson({
+      figure,
+      viewModel,
+    });
   } catch (error) {
     console.error('Error in GET /api/figures/[id]:', error);
     return secureJson(
