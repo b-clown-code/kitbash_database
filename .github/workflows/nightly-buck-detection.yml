@@ -1,26 +1,37 @@
-name: Nightly Buck Detection
+name: Nightly Graph Integrity Sweep
 
 on:
   schedule:
-    # Run every day at 2 AM UTC
     - cron: '0 2 * * *'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
-  detect-bucks:
+  graph-sweep:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Trigger buck detection API
+      - name: Trigger graph integrity sweep
         run: |
-          curl -X POST \
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
             -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            "${{ secrets.VERCEL_APP_URL }}/api/admin/detect-bucks" \
-            --fail
-      
-      - name: Report success
-        run: echo "✅ Buck detection completed successfully"
-      
+            "${{ secrets.VERCEL_APP_URL }}/api/admin/nightly-graph-sweep" \
+            --max-time 120)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Graph integrity sweep failed"
+            exit 1
+          fi
+
+          echo "✅ Graph integrity sweep succeeded"
+
       - name: Report failure
         if: failure()
-        run: echo "❌ Buck detection failed - check Vercel logs"
+        run: echo "❌ Check Vercel logs for /api/admin/nightly-graph-sweep"
