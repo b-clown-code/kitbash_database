@@ -51,3 +51,6 @@ CREATE POLICY "Public read image_links" ON image_links
 -- Claims can be read publicly, but no public write policy is granted here.
 CREATE POLICY "Public read claims" ON claims
   FOR SELECT USING (true);
+
+CREATE POLICY "Public insert claims" ON claims
+  FOR INSERT WITH CHECK (true);
