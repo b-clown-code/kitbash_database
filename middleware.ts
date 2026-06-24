@@ -2,6 +2,26 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  // If maintenance mode is enabled, redirect most requests to the maintenance page.
+  const maintenanceOn = (process.env.MAINTENANCE_MODE || '').toLowerCase() === '1' ||
+    (process.env.MAINTENANCE_MODE || '').toLowerCase() === 'true';
+
+  // Allow health checks, API, static assets, next internals, and the maintenance page itself.
+  const exemptPaths = [
+    '/api/',
+    '/_next/',
+    '/static/',
+    '/favicon.ico',
+    '/robots.txt',
+    '/maintenance',
+  ];
+
+  const isExempt = exemptPaths.some((p) => request.nextUrl.pathname.startsWith(p));
+
+  if (maintenanceOn && !isExempt) {
+    return NextResponse.redirect(new URL('/maintenance', request.url));
+  }
+
   const response = NextResponse.next();
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
